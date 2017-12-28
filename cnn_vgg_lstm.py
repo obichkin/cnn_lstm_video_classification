@@ -38,7 +38,9 @@ def cnn_lstm_video_classification():
         generator=my_generator(batch_size),
         steps_per_epoch=16,
         epochs=1,
-        verbose=2
+        verbose=2,
+        validation_data=my_generator(batch_size),
+        validation_steps=64
     )
 
     model.save(model_path)
@@ -159,7 +161,6 @@ def load_vgg16_model_sequential():
 
     return my_model
 
-
 def load_vgg16_model_api():
     if(os.path.isfile(model_path)):
         my_model = load_model(model_path)
@@ -169,6 +170,8 @@ def load_vgg16_model_api():
         vgg_16 = VGG16(include_top=False, weights='imagenet', input_tensor=inp)
         x = vgg_16.output
 
+        for layer in vgg_16.layers:
+            layer.trainable = False
 
         x = TimeDistributed(Flatten())(x)
         x = LSTM(32)(x)
@@ -177,6 +180,9 @@ def load_vgg16_model_api():
 
         my_model = Model(inputs=vgg_16.inputs, outputs=predictions)
         my_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+        #for layer in my_model.layers:
+        #    print(layer.trainable, layer)
 
         return my_model
 
