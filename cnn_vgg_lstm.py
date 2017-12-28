@@ -1,43 +1,44 @@
 import time
 from keras.applications.vgg16 import VGG16, preprocess_input
-from keras.models import Model, load_model
-from keras.layers import Input, Flatten, Dense, LSTM
+from keras.models import Model, load_model, Sequential
+from keras.layers import Input, Flatten, Dense, LSTM, TimeDistributed, Embedding, RNN
 import keras
+
 
 import cv2
 import os
 import numpy as np
 import pandas as pd
+from vgg_16_keras import VGG_16
+
 
 video_path = "data-samples"
 m = 256
-batch_size = 16
+batch_size = 32
 cats = {"agitated": 0,
         "feeding": 1,
         "normal": 2,
         "obstructed": 3}
-model_path = "my_model_vgg16.h5"
+vgg16_weights_path = "vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5"
+model_path = "my_model.h5"
 
 
 def main():
 
     print("keras.__version__", keras.__version__)
-    #cnn_lstm_video_classification()
+    cnn_lstm_video_classification()
 
-    for x_train, y_train in my_generator(32):
-        print(x_train.shape, y_train.shape)
 
 
 def cnn_lstm_video_classification():
-    model = load_vgg16_model()
+    model = load_vgg16_model_sequential()
 
     model.fit_generator(
         generator=my_generator(batch_size),
-        steps_per_epoch=1,
+        steps_per_epoch=16,
         epochs=1,
         verbose=2
     )
-
 
     model.save(model_path)
 
@@ -99,7 +100,6 @@ def fit_model(model, test):
                 )
                 print(scores)
 
-
 def my_generator(batch_size):
     i = 0
     x_train = np.zeros((batch_size, 224, 224, 3))
@@ -116,7 +116,7 @@ def my_generator(batch_size):
     for dir in os.listdir(video_path):
         for file in [os.path.join(video_path, dir, f) for f in os.listdir(os.path.join(video_path, dir)) if f.endswith(".mp4")]:
 
-            print(file)
+            #print(file)
             cap = cv2.VideoCapture(file)
 
             while True:
@@ -131,7 +131,6 @@ def my_generator(batch_size):
 
                     if(i >= batch_size):
                         x_train = preprocess_input(x_train[:i])
-                        print("before yield", x_train.shape, y_train.shape)
                         yield x_train, y_train
                         i=0
                         x_train = np.zeros((batch_size, 224, 224, 3))
@@ -141,34 +140,21 @@ def my_generator(batch_size):
             cap.release()
             #cv2.destroyAllWindows()
 
-
-
-
-def load_vgg16_model():
+def load_vgg16_model_sequential():
 
     if(os.path.isfile(model_path)):
         my_model = load_model(model_path)
     else:
+        my_model = Sequential()
 
-        input = Input(shape=(224, 224, 3), name="my_input")
-        base_model = VGG16(include_top=False, weights='imagenet', input_tensor=input)
-        x = base_model.output
 
-        #add FC layers
-        x = Flatten(name='flatten')(x)
-    #    x = LSTM(256, name='lstm1')(x)
-    #    x = LSTM(256, name='lstm2')(x)
-        x = Dense(4, activation='softmax', name='y_pred')(x)
 
-        my_model = Model(inputs=base_model.input, outputs=x)
-        #my_model.summary()
 
-        for layer in base_model.layers[:15]:
-            layer.trainable = False
+        my_model.load_weights(filepath=vgg16_weights_path, by_name=True)
 
-        my_model.compile(optimizer='adam', loss='categorical_crossentropy')
 
-        #my_model.summary()
+        my_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+        my_model.summary()
 
 
     return my_model
