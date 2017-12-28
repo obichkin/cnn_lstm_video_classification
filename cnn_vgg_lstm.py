@@ -1,7 +1,7 @@
 import time
 from keras.applications.vgg16 import VGG16, preprocess_input
 from keras.models import Model, load_model, Sequential
-from keras.layers import Input, Flatten, Dense, LSTM, TimeDistributed, Embedding, RNN
+from keras.layers import Input, Flatten, Dense, LSTM, TimeDistributed
 import keras
 
 
@@ -31,7 +31,8 @@ def main():
 
 
 def cnn_lstm_video_classification():
-    model = load_vgg16_model_sequential()
+    #model = load_vgg16_model_sequential()
+    model = load_vgg16_model_api()
 
     model.fit_generator(
         generator=my_generator(batch_size),
@@ -147,18 +148,37 @@ def load_vgg16_model_sequential():
     else:
         my_model = Sequential()
 
-
-
-
-        my_model.load_weights(filepath=vgg16_weights_path, by_name=True)
-
-
-        my_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+        my_model = load_model(vgg16_weights_path)
         my_model.summary()
+
+
+#        my_model.load_weights(filepath=vgg16_weights_path, by_name=True)
+#        my_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
 
 
     return my_model
 
+
+def load_vgg16_model_api():
+    if(os.path.isfile(model_path)):
+        my_model = load_model(model_path)
+    else:
+
+        inp = Input(shape=(224,224,3))
+        vgg_16 = VGG16(include_top=False, weights='imagenet', input_tensor=inp)
+        x = vgg_16.output
+
+
+        x = TimeDistributed(Flatten())(x)
+        x = LSTM(32)(x)
+
+        predictions = Dense(4, name="dense1")(x)
+
+        my_model = Model(inputs=vgg_16.inputs, outputs=predictions)
+        my_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+        return my_model
 
 if __name__ == "__main__":
     main()
